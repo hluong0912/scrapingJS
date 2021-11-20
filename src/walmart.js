@@ -26,7 +26,8 @@
 const express = require("express");
 const { url } = require("inspector");
 var app = express();
-const { MongoClient } = require("mongodb");
+const { MongoClient,ObjectId } = require("mongodb");
+// const { collapseTextChangeRangesAcrossMultipleVersions } = require("typescript");
 // Connection URI
 const uri =
   "mongodb+srv://phandb:6ntMKKm5LfZoKBtP@cluster0.vvfo5.mongodb.net/POManagement?retryWrites=true&w=majority";
@@ -63,9 +64,11 @@ const { remote } = require('webdriverio');
     
 // })()
 
-async function getData(){
+async function getData(start,stop){
   let browser;
-    for ( chapter = 578; chapter< 700; chapter++){
+  var waitingData = []
+  var count = 0
+    for ( chapter = start; chapter < stop; chapter++){
       browser = await remote({
         capabilities: {
             browserName: 'chrome',
@@ -76,7 +79,9 @@ async function getData(){
               // library, as per
               // https://chromium.googlesource.com/chromium/src/+/lkgr/headless/README.md
               'disable-gpu',
-              ]}
+              
+              ],
+            logLevel: "silent"}
             }
         })
       let url = 'https://www.lightnovelpub.com/novel/peerless-martial-god-2/598-chapter-'+chapter
@@ -87,13 +92,30 @@ async function getData(){
       let title = await browser.$('/html/body/main/article/section[1]/div[2]/h1/span[2]')
       title = await title.getText()
       
-      console.log({title,url,chapter})
+      // console.log({title,url,chapter})
       let exists = await IsExist(title,url,chapter)
       
-      if(exists === null){
-        await InsertToDB(title,body,url,chapter)
+      if(exists === null && waitingData[chapter] === undefined){
+        waitingData[chapter] = {
+          chapter:chapter,
+          url:url,
+          title: title,
+          body:body,
+          length:body.length,
+          created: new Date(),
+          latest: new Date()
+        }
+        count++
       }
-      // await browser.pause(5000)
+
+      if(count%5 === 0)
+      {
+        await InsertBulkToDB(waitingData)
+        // await browser.pause(3000)
+        count = 0
+        waitingData = []
+      }
+      
       await browser.deleteSession()
     }
 }
@@ -107,7 +129,7 @@ async function IsExist(title,url,chapter) {
 
     var mongodb = await client.db()
     var test = await mongodb.collection('Manga').findOne({
-        chapter :chapter,
+        chapter : parseInt(chapter),
         url:url,
         title: title,
     })
@@ -118,6 +140,18 @@ async function IsExist(title,url,chapter) {
     return test
   }
 }
+
+async function InsertBulkToDB(waitingData){
+  console.log("buLK")
+  for(const chapter in waitingData){
+    let manga = waitingData[chapter]
+    // InsertToDB(manga.title,manga.body,manga.url,chapter)
+    console.log("inserting manga"+manga.chapter,manga.title)
+    await InsertToDB(manga.title,manga.body,manga.url,manga.chapter)
+  }
+}
+
+
 async function InsertToDB(title,body,url,chapter) {
   try {
     // Connect the client to the server
@@ -128,17 +162,86 @@ async function InsertToDB(title,body,url,chapter) {
 
     var mongodb = await client.db()
     var test = await mongodb.collection('Manga').insertOne({
-        chapter :chapter,
+        chapter:chapter,
         url:url,
         title: title,
         body:body,
-        created: new Date()
+        length:body.length,
+        created: new Date(),
+        latest: new Date()
+    },(err,doc)=>{
+      if (err) console.log(err)
+      console.log("successfor chapter",doc)
     })
-    
     console.log(test)
   } finally {
     // Ensures that the client will close when you finish/error
-    await client.close();
+    // await client.close();
+  }
+}
+
+
+
+async function UpdateLength() {
+  try {
+    let dict = []
+    // Connect the client to the server
+    await client.connect();
+    // Establish and verify connection
+    await client.db("admin").command({ ping: 1 });
+    console.log("Connected successfully to server");
+    var mongodb = await client.db()
+    var test = await mongodb.collection('Manga').find({length: { $exists: false }}).toArray()
+    console.log(test.length)
+    for(const chapter in test){
+      let element =  test[chapter]
+      // console.log(element)
+      if (element.body != null ){
+        // console.log(element.chapter,element.length)
+        dict[parseInt(element.chapter)] = {
+                                _id: ObjectId(element._id),
+                                // chapter : parseInt(element.chapter),
+                                // url:element.url,
+                                // title: element.title,
+                                // body:element.body,
+                                length:element.body.length,
+                                created: element.created == null ? new Date() : element.created,
+                                latest: new Date()
+                                }
+        // console.log("chaper "+element.chapter,element._id)
+        // console.log("chaper "+element.chapter,dict[element.chapter]._id.toString())
+        
+        // if (element.chapter > 410)continue
+      // if (element.chapter < 404)continue
+        // if (element.chapter > 403)break;
+      }
+    };
+
+    for (const _chapter in dict){
+      // if (_chapter > 410)continue
+      // if (_chapter < 404)continue
+      // console.log("searchquery",{chapter: parseInt(_chapter)})
+      // var test2 = await mongodb.collection('Manga').findOne(
+      //   // {_id: dict[_chapter]._id}
+      //   {chapter: parseInt(_chapter)}
+      // );
+      // console.log("test2:",test2)
+
+      await mongodb.collection('Manga').updateOne(
+        {_id: dict[_chapter]._id},
+        {$set: dict[_chapter]}, 
+        {},
+        function(err,doc) {
+          if (err) { throw err;}
+          else {
+            console.log("Updated chapter"+_chapter, doc)
+            console.log(""+_chapter, {"chapter": _chapter, "_id": dict[_chapter]._id})
+        }
+      });  
+    }
+  } finally {
+    // Ensures that the client will close when you finish/error
+    // await client.close();
   }
 }
 
@@ -148,6 +251,6 @@ app.get("/url", (req, res, next) => {
 
 app.listen(3000, async () => {
  console.log("Server running on port 3000");
- await getData()
-
+ await getData(1361,1700)
+// await UpdateLength()
 });
