@@ -23,6 +23,7 @@
 // //     console.log(data.toString());
 // //   });
 
+const e = require("express");
 const express = require("express");
 const { url } = require("inspector");
 var app = express();
@@ -64,6 +65,82 @@ const { remote } = require('webdriverio');
     
 // })()
 
+async function checkData(arr){
+  var miss = []
+  var dict = []
+  var dup = []
+  for (const chapter in arr){
+    console.log(chapter)
+    if (dict[chapter] == undefined){
+      dict[chapter] = chapter
+    }
+    else{
+      dup[chapter] = arr[chapter]
+    }
+  }
+  
+  for (i=400; i < 1500; i++){
+    if (dict[i] == undefined){
+        miss.push(i)
+    }
+  }
+  // console.log(miss)
+  console.log("missing", miss.length)
+  console.log("duplicate",dup)
+  return miss
+}
+async function getDataWholeDocument(){
+  try {
+    // Connect the client to the server
+    await client.connect();
+    // Establish and verify connection
+    await client.db("admin").command({ ping: 1 });
+    console.log("Connected successfully to server");
+    let query = {} //{chapter : {$gt : 1400}}
+    const options = {
+      	      // sort returned documents in ascending order by title (A->Z)
+      	      sort: { title: 1 },
+      	      // Include only the `title` and `imdb` fields in each returned document
+      	      projection: { _id: 1, title: 1, chapter: 1 },
+    }
+    var mongodb = await client.db()
+    var returnData = await mongodb.collection('Manga')
+    .find(query,options)
+    if ((await returnData.count()) === 0) {
+    	  console.log("No documents found!");
+    }
+    var list = await returnData.toArray()
+    console.log(list.length)
+    // console.log(list)
+    console.log(await returnData.count())
+    var dict = []
+    var dup = []
+    checkData(list)
+    // await returnData.forEach((err,e)=>{
+    //   console.log("test",e)
+    //   // if (dict[e.chapter] == undefined){
+    //   //   dict[e.chapter] = e
+    //   // }
+    //   // else{
+    //   //   console.log(e._id, e.chapter)
+    //   //   dup[e.chapter] = e
+    //   // }
+    // });
+    // console.log(dict.length)
+    
+    
+    // },(err,doc)=> {
+    //   console.log(doc.length)
+    //   addData(doc)
+    // })
+    // console.log(returnData.length)
+
+  } finally {
+    // Ensures that the client will close when you finish/error
+    await client.close();
+    return returnData
+  }
+}
 async function getData(start,stop){
   let browser;
   var waitingData = []
@@ -251,6 +328,7 @@ app.get("/url", (req, res, next) => {
 
 app.listen(3000, async () => {
  console.log("Server running on port 3000");
- await getData(1361,1700)
+//  await getData(1361,1700)
+await getDataWholeDocument()
 // await UpdateLength()
 });
