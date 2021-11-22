@@ -1,178 +1,92 @@
-// var urllib = require('urllib');
-// // const res = {url: "https://www.walmart.com/ip/iPhone-13-Pro-Max-Leather-Case-with-MagSafe-Sequoia-Green/222061283?athcpid=222061283&athpgid=AthenaHomepageDesktop__gm__-1.0&athcgid=null&athznid=ItemCarousel_cac003f2-9e07-4238-bae6-e183f2dcb6dc_items&athieid=null&athstid=CS020&athguid=PF9vGhKSIcQShFjwOSqXQkNYs3ChQRFXtVLN&athancid=null&athena=true"}
-// const res = {url:"https://www.lightnovelpub.com/novel/peerless-martial-god-2/598-chapter-400"}
-// urllib.request(res.url, function (err, data, res) {
-//   if (err) {
-//     throw err; // you need to handle error
-//   }
-//   console.log(res.statusCode);
-//   console.log(res.headers);
-//   console.log(res.data);
-//   // data is Buffer instance
-//   // console.log("first time",res.requestUrls[0]);
-//   // // for ( const i in res.headers)
-//   //   console.log("", res.headers["report-to"].split(":")[2].replace("\"","")+":"+res.headers["report-to"].split(":")[3])
-// //   urllib.request("https://www.walmart.com/"+res.headers.location.split("/blocked?")[1], function (err, data, res) {
-// //     if (err) {
-// //       throw err; // you need to handle error
-// //     }
-// //     console.log(res.statusCode);
-// //     console.log(res.headers);
-// //     // data is Buffer instance
-// //     console.log("second times",res.requestUrls[0]);
-// //     console.log(data.toString());
-// //   });
+require('chromedriver');
+const webdriver = require('selenium-webdriver');
+let chrome = require('selenium-webdriver/chrome');
 
-const e = require("express");
 const express = require("express");
-const { url } = require("inspector");
+// const { url } = require("inspector");
+// const { remote } = require('webdriverio');
 var app = express();
 const { MongoClient,ObjectId } = require("mongodb");
-// const { collapseTextChangeRangesAcrossMultipleVersions } = require("typescript");
+// const {configs} = require("../config")
+
 // Connection URI
-const uri =
-  "mongodb+srv://phandb:6ntMKKm5LfZoKBtP@cluster0.vvfo5.mongodb.net/POManagement?retryWrites=true&w=majority";
+// const uri = `mongodb+srv://${configs.MONGODB_USERNAME}:${configs.MONGODB_PASSWORD}@${configs.MONGODB_PATH}`
+const uri = "mongodb+srv://phandb:6ntMKKm5LfZoKBtP@cluster0.vvfo5.mongodb.net/POManagement?retryWrites=true&w=majority&maxPoolSize=10";
 // Create a new MongoClient
 const client = new MongoClient(uri);
-// });
-const { remote } = require('webdriverio');
 
-// const CDP = require('chrome-remote-interface');
-// ;(async () => {
-
-  // CDP((client) => {
-  //   // Extract used DevTools domains.
-  //   const {Page, Runtime} = client;
-
-  //   // Enable events on domains we are interested in.
-  //   Promise.all([
-  //     Page.enable()
-  //   ]).then(() => {
-  //     return Page.navigate({url: 'https://www.lightnovelpub.com/novel/peerless-martial-god-2/598-chapter-500'});
-  //   });
-
-  //   // Evaluate outerHTML after page has loaded.
-  //   Page.loadEventFired(() => {
-  //     Runtime.evaluate({expression: 'document.body.outerHTML'}).then((result) => {
-  //       console.log(result.result.value);
-  //       client.close();
-  //     });
-  //   });
-  // }).on('error', (err) => {
-  //   console.error('Cannot connect to browser:', err);
-  // });
-    // let client;
-    
-// })()
-
-async function checkData(arr){
-  var miss = []
-  var dict = []
-  var dup = []
-  for (const chapter in arr){
-    console.log(chapter)
-    if (dict[chapter] == undefined){
-      dict[chapter] = chapter
-    }
-    else{
-      dup[chapter] = arr[chapter]
-    }
-  }
-  
-  for (i=400; i < 1500; i++){
-    if (dict[i] == undefined){
-        miss.push(i)
-    }
-  }
-  // console.log(miss)
-  console.log("missing", miss.length)
-  console.log("duplicate",dup)
-  return miss
-}
-async function getDataWholeDocument(){
-  try {
-    // Connect the client to the server
-    await client.connect();
-    // Establish and verify connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Connected successfully to server");
-    let query = {} //{chapter : {$gt : 1400}}
-    const options = {
-      	      // sort returned documents in ascending order by title (A->Z)
-      	      sort: { title: 1 },
-      	      // Include only the `title` and `imdb` fields in each returned document
-      	      projection: { _id: 1, title: 1, chapter: 1 },
-    }
-    var mongodb = await client.db()
-    var returnData = await mongodb.collection('Manga')
-    .find(query,options)
-    if ((await returnData.count()) === 0) {
-    	  console.log("No documents found!");
-    }
-    var list = await returnData.toArray()
-    console.log(list.length)
-    // console.log(list)
-    console.log(await returnData.count())
-    var dict = []
-    var dup = []
-    checkData(list)
-    // await returnData.forEach((err,e)=>{
-    //   console.log("test",e)
-    //   // if (dict[e.chapter] == undefined){
-    //   //   dict[e.chapter] = e
-    //   // }
-    //   // else{
-    //   //   console.log(e._id, e.chapter)
-    //   //   dup[e.chapter] = e
-    //   // }
-    // });
-    // console.log(dict.length)
-    
-    
-    // },(err,doc)=> {
-    //   console.log(doc.length)
-    //   addData(doc)
-    // })
-    // console.log(returnData.length)
-
-  } finally {
-    // Ensures that the client will close when you finish/error
-    await client.close();
-    return returnData
-  }
-}
-async function getData(start,stop){
+async function getData(start,stop, _list){
   let browser;
   var waitingData = []
   var count = 0
+  var list  = _list
+  // console.log("list",list.length)
+  if (list.length == 0){
     for ( chapter = start; chapter < stop; chapter++){
-      browser = await remote({
-        capabilities: {
-            browserName: 'chrome',
-            chromeOptions: {
-            args: [
-              'headless',
-              // Use --disable-gpu to avoid an error from a missing Mesa
-              // library, as per
-              // https://chromium.googlesource.com/chromium/src/+/lkgr/headless/README.md
-              'disable-gpu',
-              
-              ],
-            logLevel: "silent"}
-            }
-        })
-      let url = 'https://www.lightnovelpub.com/novel/peerless-martial-god-2/598-chapter-'+chapter
-      await browser.url(url)
-      
-      let apiLink = await browser.$('#chapter-container')
-      let body = await apiLink.getText()
-      let title = await browser.$('/html/body/main/article/section[1]/div[2]/h1/span[2]')
-      title = await title.getText()
-      
+        list.push(chapter)
+    }
+  }
+  console.log("total missing chapter",list)
+
+  // args = [
+  //   'headless'
+  //  ];
+  //  chromedriver.start(args)
+  //  .then(() => {
+  //    console.log('chromedriver is ready');
+
+  //  });
+  //  // run your tests
+  //  chromedriver.stop();
+
+    var opts = new chrome.Options();
+    opts.addArguments('--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.1 Safari/605.1.15')
+    opts.addArguments('--headless')
+    opts.addArguments('--disable-gpu')
+  // opts.headless()
+  
+    
+  for (const _chapter of _list){
+      let driver = new webdriver.Builder()
+      //   .usingServer('http://YOUR_USERNAME:YOUR_ACCESS_KEY@hub-cloud.browserstack.com/wd/hub')
+      .forBrowser('chrome')
+      .setChromeOptions(opts)
+      // .withCapabilities(opts)
+      .build();
+      const chapter = parseInt(_chapter)
+      let url = `https://www.lightnovelpub.com/novel/peerless-martial-god-2/598-chapter-${chapter}`
+      console.log(url)
+      // browser = await remote({
+      //   capabilities: {
+      //       browserName: 'chrome',
+      //       chromeOptions: {
+      //       args: [
+      //         'headless',
+      //         // Use --disable-gpu to avoid an error from a missing Mesa
+      //         // library, as per
+      //         // https://chromium.googlesource.com/chromium/src/+/lkgr/headless/README.md
+      //         'disable-gpu',
+      //         ],
+      //       logLevel: "silent"}
+      //       }
+      // })
+
+      //GET URL AND FIND ALL ELEMENTS
+      // await browser.url(url)
+      // let apiLink = await browser.$('#chapter-container')
+      // let body = await apiLink.getText()
+      // let title = await browser.$('/html/body/main/article/section[1]/div[2]/h1/span[2]')
+      await driver.get("https://www.lightnovelpub.com/novel/peerless-martial-god-2/598-chapter-1000")//get("https://google.com");
+      const divChapter = await driver.findElement(webdriver.By.id("chapter-container"));
+      const divTitle = await driver.findElement(webdriver.By.xpath("/html/body/main/article/section[1]/div[2]/h1/span[2]"));
+      // console.log(await inputField.getText())
+      // console.log(await title.getText())
+      let body = await divChapter.getText()
+      let title = await divTitle.getText()
       // console.log({title,url,chapter})
-      let exists = await IsExist(title,url,chapter)
+      let isContentExist = await IsExist(title,url,chapter)
       
-      if(exists === null && waitingData[chapter] === undefined){
+      if(isContentExist === null && waitingData[chapter] === undefined){
         waitingData[chapter] = {
           chapter:chapter,
           url:url,
@@ -192,8 +106,8 @@ async function getData(start,stop){
         count = 0
         waitingData = []
       }
-      
-      await browser.deleteSession()
+      // await browser.deleteSession()
+      driver.close()
     }
 }
 async function IsExist(title,url,chapter) {
@@ -210,7 +124,6 @@ async function IsExist(title,url,chapter) {
         url:url,
         title: title,
     })
-
   } finally {
     // Ensures that the client will close when you finish/error
     await client.close();
@@ -224,20 +137,23 @@ async function InsertBulkToDB(waitingData){
     let manga = waitingData[chapter]
     // InsertToDB(manga.title,manga.body,manga.url,chapter)
     console.log("inserting manga"+manga.chapter,manga.title)
-    await InsertToDB(manga.title,manga.body,manga.url,manga.chapter)
+    // await InsertToDB(manga.title,manga.body,manga.url,manga.chapter)
   }
 }
 
-
 async function InsertToDB(title,body,url,chapter) {
   try {
+    
     // Connect the client to the server
     await client.connect();
+    
     // Establish and verify connection
     await client.db("admin").command({ ping: 1 });
+    
     console.log("Connected successfully to server");
 
     var mongodb = await client.db()
+    
     var test = await mongodb.collection('Manga').insertOne({
         chapter:chapter,
         url:url,
@@ -246,18 +162,79 @@ async function InsertToDB(title,body,url,chapter) {
         length:body.length,
         created: new Date(),
         latest: new Date()
-    },(err,doc)=>{
+    },async (err,doc)=>{
       if (err) console.log(err)
       console.log("successfor chapter",doc)
+      
     })
     console.log(test)
   } finally {
     // Ensures that the client will close when you finish/error
-    // await client.close();
+    await client.close();
   }
 }
 
+async function checkData(arr){
+  var miss = []
+  var dict = []
+  var dup = []
+  for (const _c in arr){
+    let chapter = arr[_c].chapter
+    if (dict[chapter] == undefined){
+      dict[chapter] = chapter
+    }
+    else{
+      dup[chapter] = arr[_c]
+    }
+  }
+  
+  for (i=400; i < 1700; i++){
+    if (dict[i] == undefined){
+        miss.push(i)
+    }
+  }
+  
+  console.log(dup)
+  console.log("duplicate",dup.length)
+  console.log("missing", miss.length)
+  return miss
+}
 
+async function getDataWholeDocument(){
+  try {
+    // Connect the client to the server
+    await client.connect();
+    // Establish and verify connection
+    await client.db("admin").command({ ping: 1 });
+    console.log("Connected successfully to server");
+    let query = {} //{chapter : {$gt : 1400}}
+    const options = {
+              // sort returned documents in ascending order by title (A->Z)
+              sort: { title: 1 },
+              // Include only the `title` and `imdb` fields in each returned document
+              projection: { _id: 1, title: 1, chapter: 1 },
+    }
+    
+    var mongodb = await client.db()
+    
+    var returnData = await mongodb.collection('Manga')
+    .find(query,options)
+    
+    if ((await returnData.count()) === 0) {
+        console.log("No documents found!");
+    }
+
+    var list = await returnData.toArray()
+    console.log(list.length)
+    // console.log(list)
+    console.log(await returnData.count())
+    var missingChapters = checkData(list)
+  } finally {
+    // Ensures that the client will close when you finish/error
+    await client.close();
+    return missingChapters
+  }
+}
 
 async function UpdateLength() {
   try {
@@ -295,15 +272,6 @@ async function UpdateLength() {
     };
 
     for (const _chapter in dict){
-      // if (_chapter > 410)continue
-      // if (_chapter < 404)continue
-      // console.log("searchquery",{chapter: parseInt(_chapter)})
-      // var test2 = await mongodb.collection('Manga').findOne(
-      //   // {_id: dict[_chapter]._id}
-      //   {chapter: parseInt(_chapter)}
-      // );
-      // console.log("test2:",test2)
-
       await mongodb.collection('Manga').updateOne(
         {_id: dict[_chapter]._id},
         {$set: dict[_chapter]}, 
@@ -326,9 +294,10 @@ app.get("/url", (req, res, next) => {
     res.json(["Tony","Lisa","Michael","Ginger","Food"]);
    });
 
-app.listen(3000, async () => {
+app.listen(3001, async () => {
  console.log("Server running on port 3000");
-//  await getData(1361,1700)
-await getDataWholeDocument()
+  await getData(0,0,await getDataWholeDocument())
+//  await getData(1381,1385)
 // await UpdateLength()
 });
+// {chapter: {$gte: 1361, $lte:1380}}
